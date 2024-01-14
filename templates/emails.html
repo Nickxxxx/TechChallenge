@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Emails</title>
+</head>
+<body>
+    <h1>New Emails</h1>
+    <ul>
+        {% for email in emails %}
+            <li><strong>From:</strong> {{ email.from }} | <strong>Subject:</strong> {{ email.subject }}</li>
+        {% else %}
+            <li>No new emails</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
