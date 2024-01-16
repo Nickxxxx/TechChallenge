@@ -1,133 +1,60 @@
-from flask import Flask, request, jsonify, render_template
-from flask_mail import Mail, Message
-import imaplib
-import email
+import os
+from dotenv import load_dotenv
 
-import imaplib
+load_dotenv()
+from flask import Flask, request, jsonify
+from flask_mail import Mail
+from communication import email
+from emotional_analysis import emotion_classifier
+from gpt import gpt4
+
+MAIL_SERVER = os.getenv('MAIL_SERVER')
+MAIL_PORT = int(os.getenv('MAIL_PORT'))
+MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+MAIL_USE_TLS = os.getenv('MAIL_USE_TLS') == 'True'
+MAIL_USE_SSL = os.getenv('MAIL_USE_SSL') == 'True'
 
 app = Flask(__name__)
 
-# Configure the email settings
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465  # or 465 for SSL
-app.config['MAIL_USERNAME'] = 'techchallengetum@gmail.com'
-app.config['MAIL_PASSWORD'] = 'Cuthi5-hankan-jaqgaq'
-app.config['MAIL_USE_TLS'] = True  # Set to False if using SSL
-app.config['MAIL_USE_SSL'] = False  # Set to True if using SSL
+# Configuration
+app.config['MAIL_SERVER'] = MAIL_SERVER
+app.config['MAIL_PORT'] = MAIL_PORT
+app.config['MAIL_USERNAME'] = MAIL_USERNAME
+app.config['MAIL_PASSWORD'] = MAIL_PASSWORD
+app.config['MAIL_USE_TLS'] = MAIL_USE_TLS
+app.config['MAIL_USE_SSL'] = MAIL_USE_SSL
 
 mail = Mail(app)
 
-import imaplib
-import email
-from flask import Flask, render_template
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+mailer = email.Mailer(mail, MAIL_SERVER, MAIL_USERNAME, MAIL_PASSWORD)
+emotional_classifier = emotion_classifier.EmotionClassifier()
+gpt_model = gpt4.GPT()
 
-app = Flask(__name__)
 
-@app.route('/viewEmails')
-def view_emails():
-    # Load your OAuth2 credentials
-    creds = None
-    # Load the saved token.json file that contains your access and refresh tokens.
-    # If using a different email provider, adjust accordingly.
-
-    # If there are no valid credentials available, ask the user to log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', scopes=['https://mail.google.com/'])
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-
-    # Use the credentials to access the email server
-    mail = imaplib.IMAP4_SSL('imap.gmail.com')
-    mail.auth(creds)
-
-    mail.select('inbox')  # Connect to the inbox
-    status, response = mail.search(None, 'UNSEEN')
-    email_ids = response[0].split()
-
-    emails = []
-    for e_id in email_ids:
-        _, msg_data = mail.fetch(e_id, '(RFC822)')
-        for response_part in msg_data:
-            if isinstance(response_part, tuple):
-                msg = email.message_from_bytes(response_part[1])
-                email_subject = msg['subject']
-                email_from = msg['from']
-                emails.append({'from': email_from, 'subject': email_subject})
-
-    mail.logout()
-
-    return render_template('emails.html', emails=emails)
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
-####
-'''
-
-@app.route('/send_email', methods=['POST'])
-def send_email():
+# All methods must be invokes via a sigle POST endpoint, because Protopie does not support multiple endpoints
+@app.route('/post-endpoint', methods=['POST'])
+def post_endpoint():
     data = request.json
-    subject = data.get('subject', 'No Subject')
-    recipient = data.get('recipient')
-    body = data.get('body', '')
+    method = data['method']
 
-    if not recipient:
-        return jsonify({"error": "Recipient is required"}), 400
+    if method == 'send_mail':
+        body = gpt_model.chat_to_mail(data['text'], data['lawyer_name'], data['recipient_name'])
+        subject = gpt_model.chat_to_mail_subject(data['text'])
+        mailer.send_mail(subject, data['recipients'], body)
+        return jsonify({'message': 'Mail sent'})
+    elif method == 'get_unread_emails':
+        emails = mailer.get_unread_emails()
+        return jsonify({'message': 'Emails received', 'emails': emails})
+    elif method == 'predict_emotion':
+        emotion_probabilities = emotional_classifier.predict_emotion(data['text'])
+        return jsonify({'message': 'Emotion predicted', 'emotion_probabilities': emotion_probabilities})
+    elif method == 'legal_explain':
+        explanation = gpt_model.legal_explain(data['legal_term'], data['text'])
+        return jsonify({'message': 'Legal term explained', 'explanation': explanation})
 
-    msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[recipient])
-    msg.body = body
-    mail.send(msg)
+    return jsonify({'message': 'Method not found'})
 
-    return jsonify({"message": "Email sent successfully to {}".format(recipient)})
-
-@app.route('/viewEmails')
-def view_emails():
-    mail_server = 'smtp.gmail.com'  # Replace with your IMAP server
-    email_account = 'techchallengetum@gmail.com'  # Your full email address
-    password = 'Cuthi5-hankan-jaqgaq'  # Your email password
-
-    # Connect to the mail server
-    mail = imaplib.IMAP4_SSL(mail_server)
-    mail.login(email_account, password)
-    mail.select('inbox')  # Connect to the inbox
-
-    # Search for unseen emails
-    status, response = mail.search(None, 'UNSEEN')
-    email_ids = response[0].split()
-
-    emails = []
-    for e_id in email_ids:
-        # Fetch the email's full data
-        _, msg_data = mail.fetch(e_id, '(RFC822)')
-
-        # Parse the email data
-        for response_part in msg_data:
-            if isinstance(response_part, tuple):
-                msg = email.message_from_bytes(response_part[1])
-                email_subject = msg['subject']
-                email_from = msg['from']
-                emails.append({'from': email_from, 'subject': email_subject})
-
-    mail.logout()
-
-    # Render a template to display emails
-    return render_template('emails.html', emails=emails)
-
-@app.route('/')
-def home():
-    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
-'''

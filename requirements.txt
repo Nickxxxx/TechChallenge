@@ -1,0 +1,7 @@
+flask
+flask-mail
+torch
+transformers
+langchain
+langchain_openai
+python-dotenv

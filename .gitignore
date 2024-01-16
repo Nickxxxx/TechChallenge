@@ -1,1 +1,3 @@
 TechVenv/
+.idea/
+.env

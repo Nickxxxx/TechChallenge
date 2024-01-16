@@ -8,7 +8,7 @@
     <h1>New Emails</h1>
     <ul>
         {% for email in emails %}
-            <li><strong>From:</strong> {{ email.from }} | <strong>Subject:</strong> {{ email.subject }}</li>
+            <li><strong>From:</strong> {{ email.from }} | <strong>Subject:</strong> {{ email.subject }} | <strong>Message:</strong> {{ email.body }}</li>
         {% else %}
             <li>No new emails</li>
         {% endfor %}
