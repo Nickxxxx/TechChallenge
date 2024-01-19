@@ -1,6 +1,7 @@
 import email
 import imaplib
 from typing import List
+import re
 
 from flask_mail import Message
 
@@ -11,9 +12,19 @@ class Mailer:
         self.mail_server = mail_server
         self.email_account = email_account
         self.password = password
+        self.test_client_name = "Jonas Zausinger"
+        self.test_client_email = "jonas.zausinger1@gmail.com"
+        self.lawyer_name = "Max Mustermann"
 
-    def send_mail(self, subject: str, recipients: List[str], body: str) -> None:
-        msg = Message(subject, sender=self.email_account, recipients=recipients)
+    def set_test_client(self, name: str, email_address: str):
+        self.test_client_name = name
+        self.test_client_email = email_address
+
+    def set_lawyer_name(self, name: str):
+        self.lawyer_name = name
+
+    def send_mail(self, subject: str, body: str) -> None:
+        msg = Message(subject, sender=self.email_account, recipients=[self.test_client_email])
         msg.body = body
         self.mail.send(msg)
 
@@ -23,8 +34,9 @@ class Mailer:
         mail.login(self.email_account, self.password)
         mail.select('inbox')  # Connect to the inbox
 
+        search = f"({search_criteria} FROM \"{self.test_client_email}\")"
         # Search for unseen emails
-        status, response = mail.search(None, search_criteria)
+        status, response = mail.search(None, search)
         email_ids = response[0].split()
 
         emails = []
@@ -59,7 +71,9 @@ class Mailer:
                         # If the email is not multipart, just get the payload
                         body = msg.get_payload(decode=True).decode()
 
-                    emails.append({'from': email_from, 'subject': email_subject, 'body': body})
+                    body = re.sub(r'\r\n', '\n', body)
+                    emails.append(
+                        {'from': email_from, 'subject': email_subject, 'body': body, "written_from_lawyer": 0})
 
         mail.logout()
         return emails
