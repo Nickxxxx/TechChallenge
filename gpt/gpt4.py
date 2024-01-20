@@ -16,6 +16,15 @@ class GPT:
             ("user", "{input}")
         ])
 
+        telegram_prompt_template = ChatPromptTemplate.from_messages([
+            ("system", "Please rewrite the following text into a format that it fits to a professional telegram message."
+                       " The message should start with a greeting and end with best regards and the name of the sender."
+                       "The sender has the name {lawyer_name}. "
+                       "The recipient has the name {recipient_name}. "
+                       "Do not alter the meaning of the text in any way, only its formatting."),
+            ("user", "{input}")
+        ])
+
         mail_subject_prompt_template = ChatPromptTemplate.from_messages([
             ("system", "Please write a subject for the email."),
             ("user", "{input}")
@@ -43,6 +52,7 @@ class GPT:
         llm = ChatOpenAI(model_name="gpt-3.5-turbo")
 
         self.mail_chain = mail_prompt_template | llm | StrOutputParser()
+        self.telegram_chain = telegram_prompt_template | llm | StrOutputParser()
         self.mail_subject_chain = mail_subject_prompt_template | llm | StrOutputParser()
         self.legal_explanation_chain = legal_explanation_prompt_template | llm | StrOutputParser()
         self.emotional_suggestions_chain = emotional_suggestions_prompt_template | llm | StrOutputParser()
@@ -50,6 +60,9 @@ class GPT:
 
     def chat_to_mail(self, text, lawyer_name: str, recipient_name: str):
         return self.mail_chain.invoke({"input": text, "lawyer_name": lawyer_name, "recipient_name": recipient_name})
+
+    def chat_to_telegram(self, text, lawyer_name: str, recipient_name: str):
+        return self.telegram_chain.invoke({"input": text, "lawyer_name": lawyer_name, "recipient_name": recipient_name})
 
     def chat_to_mail_subject(self, text):
         return self.mail_subject_chain.invoke({"input": text})
