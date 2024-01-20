@@ -39,19 +39,33 @@ def post_endpoint():
     method = data['method']
 
     if method == 'send_mail':
-        body = gpt_model.chat_to_mail(data['text'], data['lawyer_name'], data['recipient_name'])
+        body = gpt_model.chat_to_mail(data['text'], mailer.lawyer_name, mailer.test_client_name)
         subject = gpt_model.chat_to_mail_subject(data['text'])
-        mailer.send_mail(subject, data['recipients'], body)
+        mailer.send_mail(subject, body)
         return jsonify({'message': 'Mail sent'})
+
     elif method == 'get_unread_emails':
         emails = mailer.get_unread_emails()
-        return jsonify({'message': 'Emails received', 'emails': emails})
+        return jsonify({'message': 'Emails received', 'emails': emails, "from_lawyer": data['from_lawyer']})
+
     elif method == 'predict_emotion':
         emotion_probabilities = emotional_classifier.predict_emotion(data['text'])
-        return jsonify({'message': 'Emotion predicted', 'emotion_probabilities': emotion_probabilities})
+        emotional_suggestions = gpt_model.emotional_suggestions(emotion_probabilities, data['text'])
+        answer_suggestion = gpt_model.answer_suggestion(data['text'])
+        return jsonify({'message': 'Emotion predicted', 'emotion_probabilities': emotion_probabilities,
+                        'emotional_suggestions': emotional_suggestions, 'answer_suggestion': answer_suggestion})
+
     elif method == 'legal_explain':
         explanation = gpt_model.legal_explain(data['legal_term'], data['text'])
         return jsonify({'message': 'Legal term explained', 'explanation': explanation})
+
+    elif method == 'set_test_client':
+        mailer.set_test_client(data['name'], data['email'])
+        return jsonify({'message': 'Test client set'})
+
+    elif method == 'set_lawyer_name':
+        mailer.set_lawyer_name(data['name'])
+        return jsonify({'message': 'Lawyer name set'})
 
     return jsonify({'message': 'Method not found'})
 

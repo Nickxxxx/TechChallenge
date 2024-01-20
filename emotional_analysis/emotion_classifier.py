@@ -23,7 +23,7 @@ class EmotionClassifier:
         percentages = probabilities[0].tolist()  # Convert the first (and only) batch of probabilities to a list
 
         # Emotion labels (adjust based on the model's specific output)
-        labels = ["joy", "anger", "sadness", "disgust", "surprise", "fear", "neutral"]
+        labels = ["anger", "disgust", "fear", "joy", "neutral", "sadness", "surprise"]
 
         # Create a dictionary of emotion: percentage
         emotion_probabilities = {labels[i]: round(percent * 100, 2) for i, percent in enumerate(percentages)}
